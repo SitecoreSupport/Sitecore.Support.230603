@@ -2,10 +2,6 @@
 {
   using System;
   using System.Collections.Concurrent;
-  using System.Collections.Generic;
-  using System.Linq;
-  using System.Reflection;
-  using Sitecore.Data;
   using Sitecore.ContentSearch;
   public class SolrDocumentBuilder : Sitecore.ContentSearch.SolrProvider.SolrDocumentBuilder
   {
@@ -14,30 +10,26 @@
 
     }
 
-    private static readonly MethodInfo CheckAndAddFieldMethodInfo =
-      typeof(Sitecore.ContentSearch.SolrProvider.SolrDocumentBuilder).BaseType.GetMethod("CheckAndAddField",
-        BindingFlags.Instance | BindingFlags.NonPublic);
-
-    public override void AddItemFields()
+    protected override void AddItemFields()
     {
       try
       {
         VerboseLogging.CrawlingLogDebug(() => "AddItemFields start");
 
-        if (this.Options.IndexAllFields)
-        {
-          this.Indexable.LoadAllFields();
-        }
-
+        //fix for 230603
+        //if (this.Options.IndexAllFields)
+        //{
+        this.Indexable.LoadAllFields();
+        //}
+        /* fix for 230603
         var loadedFields = new HashSet<string>(this.Indexable.Fields.Select(f => f.Id.ToString()));
         var includedFields = new HashSet<string>();
         if (this.Options.HasIncludedFields)
         {
           includedFields = new HashSet<string>(this.Options.IncludedFields);
         }
-
         includedFields.ExceptWith(loadedFields);
-
+        */
         if (IsParallel)
         {
           var exceptions = new ConcurrentQueue<Exception>();
@@ -46,7 +38,7 @@
           {
             try
             {
-              CheckAndAddFieldMethodInfo.Invoke(this, new object[] { this.Indexable, f });
+              this.CheckAndAddField(this.Indexable, f);
             }
             catch (Exception ex)
             {
@@ -58,7 +50,7 @@
           {
             throw new AggregateException(exceptions);
           }
-
+          /* fix for 230603
           if (!this.Options.IndexAllFields && this.Options.HasIncludedFields)
           {
             this.ParallelForeachProxy.ForEach(includedFields, this.ParallelOptions, fieldId =>
@@ -71,8 +63,7 @@
                   var field = this.Indexable.GetFieldById(id);
                   if (field != null)
                   {
-                    CheckAndAddFieldMethodInfo.Invoke(this,
-                      new object[] { this.Indexable, field });
+                    this.CheckAndAddField(this.Indexable, field);
                   }
                 }
               }
@@ -82,14 +73,15 @@
               }
             });
           }
+          */
         }
         else
         {
           foreach (var field in this.Indexable.Fields)
           {
-            CheckAndAddFieldMethodInfo.Invoke(this, new object[] { this.Indexable, field });
+            this.CheckAndAddField(this.Indexable, field);
           }
-
+          /* fix for 230603
           if (!this.Options.IndexAllFields && this.Options.HasIncludedFields)
           {
             foreach (var fieldId in includedFields)
@@ -100,12 +92,12 @@
                 var field = this.Indexable.GetFieldById(id);
                 if (field != null)
                 {
-                  CheckAndAddFieldMethodInfo.Invoke(this,
-                    new object[] { this.Indexable, field });
+                  this.CheckAndAddField(this.Indexable, field);
                 }
               }
             }
           }
+          */
         }
       }
       finally
